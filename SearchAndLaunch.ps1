@@ -133,7 +133,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
     $optionSelected  = -1
     do {    
     Show-OptionList
-    $optionSelected = Read-Host -Prompt "Choice"
+    $optionSelected = Read-Host -Prompt "What Now"
      
      switch ($optionSelected.ToCharArray())
      { 
@@ -186,6 +186,21 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
          }
         5{        
             $optionSelected = -1
+         }
+        6{
+            foreach($site in $launchSite.Split(',')){
+                $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}  
+                if($launchSiteOption.UpdatePath -is [String] -and (Test-Path $launchSiteOption.UpdatePath)) {                              
+                Open-Folder -folderPath $launchSiteOption.UpdatePath  
+                }else{
+                  if($launchSiteOption.UpdatePath -is [String]){
+                    Write-Host "Invalid Path $($launchSiteOption.UpdatePath)"
+                  }else{
+                    Write-Host "Update path  missing from config for $($launchSiteOption.SiteName)"
+                  }                 
+                }
+                sleep -Milliseconds 5
+            } 
          }
         0{            
             Write-Host "`n"        
@@ -248,6 +263,7 @@ function Show-OptionList(){
     Write-Host "3 -> See List"
     Write-Host "4 -> Open Local Folder"
     Write-Host "5 -> Search Again"
+    Write-Host "6 -> Open Remote Folder"
     Write-Host "Hit Enter or 0 to Exit"   
     Write-Host "`n"  
 }
