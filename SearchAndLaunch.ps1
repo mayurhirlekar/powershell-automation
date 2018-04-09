@@ -151,7 +151,12 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                 if( Test-Path $launchSiteOption.LocalPath) {                              
                 Launch-IISExpress -siteId $launchSiteOption.SiteId -message "Launching IISExpress for....$($launchSiteOption.SiteName)" 
                 }else{
-                 Write-Host "Invalid Path $($launchSiteOption.LocalPath)"
+                 Write-Warning "Invalid Path $($launchSiteOption.LocalPath)"
+                }
+
+                if( $launchSiteOption.UpdatePath -is [String] -and !(Test-Path $launchSiteOption.UpdatePath)) {                              
+                    Write-Warning "Invalid remote path $($launchSiteOption.UpdatePath)"
+                    Write-Warning "JavasScript and css file might not load properly"
                 }
                 sleep -Milliseconds 10
             }           
@@ -179,7 +184,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                 if( Test-Path $launchSiteOption.LocalPath) {                              
                 Open-Folder -folderPath $launchSiteOption.LocalPath  
                 }else{
-                 Write-Host "Invalid Path $($launchSiteOption.LocalPath)"
+                 Write-Warning "Invalid Path $($launchSiteOption.LocalPath)"
                 }
                 sleep -Milliseconds 5
             } 
@@ -194,9 +199,9 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                 Open-Folder -folderPath $launchSiteOption.UpdatePath  
                 }else{
                   if($launchSiteOption.UpdatePath -is [String]){
-                    Write-Host "Invalid Path $($launchSiteOption.UpdatePath)"
+                    Write-Warning "Invalid Path $($launchSiteOption.UpdatePath)"
                   }else{
-                    Write-Host "Update path  missing from config for $($launchSiteOption.SiteName)"
+                    Write-Warning "Update path  missing from config for $($launchSiteOption.SiteName)"
                   }                 
                 }
                 sleep -Milliseconds 5
@@ -239,7 +244,7 @@ function Open-Solution( [string]$path,[string] $message) {
         Write-Host "Solution is already open $($solutionFile)"
    }
   }else{
-   Write-Host "Invalid Path: $($path)"
+   Write-Warning "Invalid Path: $($path)"
   }  
     
 }
