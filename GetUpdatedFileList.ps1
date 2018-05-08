@@ -70,5 +70,3 @@ param(
  }
 
 }
-
-Get-Updated-File-List
