@@ -1,36 +1,36 @@
 ﻿ Function Get-Updated-File-List() {
 
 param(
- [Parameter(Mandatory=$false)][string]$updatesPath
- ,[Parameter(Mandatory=$false)][string]$numberOfDays
+ [Parameter(Mandatory=$false)][string]$UpdatesPath
+ ,[Parameter(Mandatory=$false)][string]$NumberOfDays
 )
  
- if(!$updatesPath){
-    $updatesPath = Read-Host -Prompt 'Please enter folder path'
+ if(!$UpdatesPath){
+    $UpdatesPath = Read-Host -Prompt 'Please enter folder path'
  }
 
- if(!$numberOfDays){
-     $numberOfDays = Read-Host -Prompt 'Number of Days before today to check'
+ if(!$NumberOfDays){
+     $NumberOfDays = Read-Host -Prompt 'Number of Days before today to check'
  }
  
  $EXCLUDE_FOLDERS = @("tempiis",".git",".vs","fckeditor","ckeditor","aspnet_client","ftp","logs","obj")
  $TEMP_FILE_PATH =  ($env:TEMP + '\file.txt')
  $CURRENT_TIME = Get-Date
  
- $updatesPath = $updatesPath.TrimEnd('\')
+ $UpdatesPath = $UpdatesPath.TrimEnd('\')
  
- if(Test-Path $updatesPath) 
+ if(Test-Path $UpdatesPath) 
  { 
 
     $changedFiles = @()
 
-   ls -Path $updatesPath -File -Recurse |
+   ls -Path $UpdatesPath -File -Recurse |
     % -Process { 
 
-        $DirectoryName =  $_.FullName.Replace($updatesPath,"").TrimStart('\').Split('\')[0].ToLower()
+        $DirectoryName =  $_.FullName.Replace($UpdatesPath,"").TrimStart('\').Split('\')[0].ToLower()
 
         if( !$EXCLUDE_FOLDERS.Contains($DirectoryName)) {
-            if (($CURRENT_TIME - $_.LastWriteTime).TotalDays -lt $numberOfDays) 
+            if (($CURRENT_TIME - $_.LastWriteTime).TotalDays -lt $NumberOfDays) 
             { 
              $changedFiles += $_
             }
@@ -48,7 +48,7 @@ param(
         if([string]::IsNullOrEmpty($prevDirectory))
          {
             $prevDirectory = $currentDirectoryName
-            Write-Output "Folder Path: $updatesPath" 
+            Write-Output "Folder Path: $UpdatesPath" 
             Write-Output " "
          }
 
@@ -58,7 +58,7 @@ param(
             Write-Output " "
          }
 
-        Write-Output $_.FullName.Replace($updatesPath,"")
+        Write-Output $_.FullName.Replace($UpdatesPath,"")
 
      }| Out-File  $TEMP_FILE_PATH
  

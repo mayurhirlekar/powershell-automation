@@ -24,16 +24,42 @@ Just to make sure script doesn't get blocked and execution policy is properly se
 Unblock-File -Path "SearchAndLaunch.ps1"
 ```
 
+```
+Unblock-File -Path "GetUpdatedFileList.ps1"
+```
+
 ## Running the program
 
 ### Search-And-Launch
 
 ```
-. .\SearchAndLaunch.ps1
+Import-Module .\SearchAndLaunch.ps1
 ```
 
 ```
 Search-And-Launch -SiteToSearch SITENAME
+```
+
+##### OR
+
+```
+Click on SearchAndLaunch.bat
+```
+
+### Get-Updated-File-List
+
+```
+Import-Module .\GetUpdatedFileList.ps1
+```
+
+```
+Get-Updated-File-List -UpdatesPath PATH -NumberOfDays 1
+```
+
+#### OR
+
+```
+Click on GetUpdatedFileList.bat
 ```
 
 ## Coding style

@@ -239,7 +239,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                                 1{                                     
                                      if($launchSiteOption.UpdatePath -is [String] -and (Test-Path $launchSiteOption.UpdatePath)) { 
                                         
-                                        Get-Updated-File-List -updatesPath $launchSiteOption.UpdatePath -numberOfDays 1
+                                        Get-Updated-File-List -UpdatesPath $launchSiteOption.UpdatePath -NumberOfDays 1
                                     }else {
                                          Write-Warning "Update path missing from config for $($launchSiteOption.SiteName)"
                                     }
@@ -247,7 +247,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                                 2{
                                      if($launchSiteOption.LocalPath -is [String] -and (Test-Path $launchSiteOption.LocalPath)) { 
                                         
-                                        Get-Updated-File-List -updatesPath $launchSiteOption.LocalPath -numberOfDays 1
+                                        Get-Updated-File-List -UpdatesPath $launchSiteOption.LocalPath -NumberOfDays 1
                                     }else {
                                          Write-Warning "Local path missing from config for $($launchSiteOption.SiteName)"
                                     }
