@@ -1,4 +1,5 @@
-﻿Function Search-And-Launch() {
+﻿Import-Module .\GetUpdatedFileList.ps1
+Function Search-And-Launch() {
 
 param(
  [Parameter(Mandatory=$false)][string]$SiteToSearch
@@ -23,7 +24,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
     $siteObj = new-object psobject
     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name Option -Value $counter
     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name SiteName -Value $_.name
-    Add-Member -InputObject $siteObj -MemberType NoteProperty -Name SiteId -Value $_.id 
+    Add-Member -InputObject $siteObj -MemberType NoteProperty -Name SiteId -Value $_.id    
     
     $localPath  = $_.application.VirtualDirectory | where { $_.physicalpath -match "C:"} | Select-Object physicalpath -First 1
     $localWebIndex = if($localPath) {
@@ -207,10 +208,48 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                 sleep -Milliseconds 5
             } 
          }
+        7{            
+            Write-Host "`n"    
+            Write-Host "Options Available"   
+            Write-Host "1 -> Remote"
+            Write-Host "2 -> Local"    
+            Write-Host "3 -> Custom"
+            Write-Host "`n" 
+            $fileListOption = Read-Host -Prompt "What Now"
+            Write-Host "`n" 
+            Write-Warning "This might take couple of minutes"
+            Write-Host "`n"
+             foreach($site in $launchSite.Split(',')){
+                    $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()} 
+                         switch ($fileListOption.ToCharArray())
+                            {
+                                1{                                     
+                                     if($launchSiteOption.UpdatePath -is [String] -and (Test-Path $launchSiteOption.UpdatePath)) { 
+                                        
+                                        Get-Updated-File-List -updatesPath $launchSiteOption.UpdatePath -numberOfDays 1
+                                    }else {
+                                         Write-Warning "Update path missing from config for $($launchSiteOption.SiteName)"
+                                    }
+                                 }
+                                2{
+                                     if($launchSiteOption.LocalPath -is [String] -and (Test-Path $launchSiteOption.LocalPath)) { 
+                                        
+                                        Get-Updated-File-List -updatesPath $launchSiteOption.LocalPath -numberOfDays 1
+                                    }else {
+                                         Write-Warning "Local path missing from config for $($launchSiteOption.SiteName)"
+                                    }
+                                 }
+                                3{                                       
+                                        Get-Updated-File-List
+                                 }
+                            }
+             }
+
+         }  
         0{            
             Write-Host "`n"        
             Write-Host "Good Bye...."
-             $optionSelected = [Int32]::MinValue
+            $optionSelected = [Int32]::MinValue
          }        
      }
     } while($optionSelected -gt 0)      
@@ -252,7 +291,7 @@ function Open-Solution( [string]$path,[string] $message) {
 function Launch-IISExpress([string] $siteId,[string] $message){    
     $iisArgument = "/siteid:$($siteId) /systray:false /trace:n"
     Write-Host $message 
-    start 'C:\Program Files\IIS Express\iisexpress.exe' -ArgumentList $iisArgument
+    start 'C:\Program Files\IIS Express\iisexpress.exe' -ArgumentList $iisArgument    
 }
 
 function Open-Folder([string] $folderPath){        
@@ -269,8 +308,7 @@ function Show-OptionList(){
     Write-Host "4 -> Open Local Folder"
     Write-Host "5 -> Search Again"
     Write-Host "6 -> Open Remote Folder"
+    Write-Host "7 -> Get Modified File List"
     Write-Host "Hit Enter or 0 to Exit"   
     Write-Host "`n"  
 }
-
-Search-And-Launch
