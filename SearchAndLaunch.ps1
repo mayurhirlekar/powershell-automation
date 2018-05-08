@@ -24,7 +24,14 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
     $siteObj = new-object psobject
     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name Option -Value $counter
     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name SiteName -Value $_.name
-    Add-Member -InputObject $siteObj -MemberType NoteProperty -Name SiteId -Value $_.id    
+    Add-Member -InputObject $siteObj -MemberType NoteProperty -Name SiteId -Value $_.id 
+    
+    
+    $bindingObject = $_.bindings.binding | Select-Object -First 1
+    $bindingInformationArray = $bindingObject.bindingInformation.ToString().Split(':')
+    $urlBuild = [string]::Format("{0}://{1}:{2}",$bindingObject.protocol,$bindingInformationArray[$bindingInformationArray.Length-1],$bindingInformationArray[$bindingInformationArray.Length-2])      
+    
+    Add-Member -InputObject $siteObj -MemberType NoteProperty -Name DefaultUrl -Value $urlBuild
     
     $localPath  = $_.application.VirtualDirectory | where { $_.physicalpath -match "C:"} | Select-Object physicalpath -First 1
     $localWebIndex = if($localPath) {
@@ -150,7 +157,8 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
          foreach($site in $launchSite.Split(',')){
                 $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}  
                 if( Test-Path $launchSiteOption.LocalPath) {                              
-                Launch-IISExpress -siteId $launchSiteOption.SiteId -message "Launching IISExpress for....$($launchSiteOption.SiteName)" 
+                Launch-IISExpress -siteId $launchSiteOption.SiteId -message "Launching IISExpress for....$($launchSiteOption.SiteName)"                 
+
                 }else{
                  Write-Warning "Invalid Path $($launchSiteOption.LocalPath)"
                 }
@@ -159,7 +167,12 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                     Write-Warning "Invalid remote path $($launchSiteOption.UpdatePath)"
                     Write-Warning "JavasScript and css file might not load properly"
                 }
-                sleep -Milliseconds 10
+                
+                sleep -Milliseconds 50
+
+                if( $launchSiteOption.DefaultUrl -is [String]){                    
+                    Start $launchSiteOption.DefaultUrl
+                }
             }           
         }
 
@@ -301,7 +314,7 @@ function Open-Folder([string] $folderPath){
 
 function Show-OptionList(){
     Write-Host "`n"    
-    Write-Host "Options Available (*eg: 120 : Launch,Open solution,exit)"   
+    Write-Host "Options Available (*eg: 120 will Launch IISExpress and Open website, Open solution and exit)"   
     Write-Host "1 -> Launch/Restart IISExpress"
     Write-Host "2 -> Open solution"    
     Write-Host "3 -> See List"
