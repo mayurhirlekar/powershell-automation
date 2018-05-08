@@ -6,14 +6,14 @@ param(
 )
  
  if(!$updatesPath){
-    $updatesPath = Read-Host -Prompt 'Please enter updates path'
+    $updatesPath = Read-Host -Prompt 'Please enter folder path'
  }
 
  if(!$numberOfDays){
      $numberOfDays = Read-Host -Prompt 'Number of Days before today to check'
  }
  
- $EXCLUDE_FOLDERS = "tempIIS","assets",".git",".vs","FCKeditor","ckeditor","aspnet_client","ftp","_ignorethisfolder"
+ $EXCLUDE_FOLDERS = @("tempiis",".git",".vs","fckeditor","ckeditor","aspnet_client","ftp","logs")
  $TEMP_FILE_PATH =  ($env:TEMP + '\file.txt')
  $CURRENT_TIME = Get-Date
  
@@ -26,7 +26,7 @@ param(
    ls -Path $updatesPath -File -Recurse |
     % -Process { 
 
-        $DirectoryName =  Split-Path $_.Directory -Leaf
+        $DirectoryName =  (Split-Path $_.FullName -Parent | Split-Path -Leaf).ToLower()
 
         if( !$EXCLUDE_FOLDERS.Contains($DirectoryName)) {
             if (($CURRENT_TIME - $_.LastWriteTime).TotalDays -lt $numberOfDays) 
@@ -37,24 +37,31 @@ param(
     }  
 
 
-    $prevDirectory = [string]::Empty
+    
 
+    $prevDirectory = [string]::Empty
     $changedFiles | 
     Sort-Object -Property DirectoryName  | 
     % -Process {
+
+        $currentDirectoryName = (Split-Path $_.FullName -Parent | Split-Path -Leaf).ToLower()  
+
         if([string]::IsNullOrEmpty($prevDirectory))
          {
-            $prevDirectory = $_.DirectoryName.ToString()
-         }
-
-         if($prevDirectory -ne $_.DirectoryName.ToString())
-         {
+            $prevDirectory = $currentDirectoryName
+            Write-Output "Folder Path: $updatesPath" 
             Write-Output " "
          }
 
-        Write-Output $_.FullName
+         if($prevDirectory -ne $currentDirectoryName)
+         {           
+            $prevDirectory = $currentDirectoryName 
+            Write-Output " "
+         }
 
-     } | Out-File  $TEMP_FILE_PATH
+        Write-Output $_.FullName.Replace($updatesPath,"")
+
+     }| Out-File  $TEMP_FILE_PATH
  
      Notepad $TEMP_FILE_PATH  
  } 
