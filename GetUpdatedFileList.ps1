@@ -13,7 +13,7 @@ param(
      $numberOfDays = Read-Host -Prompt 'Number of Days before today to check'
  }
  
- $EXCLUDE_FOLDERS = 'tempIIS','assets','.git'
+ $EXCLUDE_FOLDERS = "tempIIS","assets",".git",".vs","FCKeditor","ckeditor","aspnet_client","ftp","_ignorethisfolder"
  $TEMP_FILE_PATH =  ($env:TEMP + '\file.txt')
  $CURRENT_TIME = Get-Date
  
@@ -23,14 +23,19 @@ param(
 
     $changedFiles = @()
 
-    ls -Path $updatesPath -File -Recurse -Exclude $EXCLUDE_FOLDERS |
+   ls -Path $updatesPath -File -Recurse |
     % -Process { 
-        if (($CURRENT_TIME - $_.LastWriteTime).TotalDays -lt $numberOfDays) 
-        { 
-         $changedFiles += $_
-        }
-          
+
+        $DirectoryName =  Split-Path $_.Directory -Leaf
+
+        if( !$EXCLUDE_FOLDERS.Contains($DirectoryName)) {
+            if (($CURRENT_TIME - $_.LastWriteTime).TotalDays -lt $numberOfDays) 
+            { 
+             $changedFiles += $_
+            }
+         } 
     }  
+
 
     $prevDirectory = [string]::Empty
 
