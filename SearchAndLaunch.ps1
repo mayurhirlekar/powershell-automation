@@ -258,6 +258,19 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                             }
              }
 
+         }
+        8{
+           foreach($site in $launchSite.Split(',')){
+                $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}  
+                if($launchSiteOption.DBServer -is [String] -and $launchSiteOption.Database -is [String])
+                {
+                 Open-Database -SiteName $launchSiteOption.SiteName -DBServer $launchSiteOption.DBServer -Database $launchSiteOption.Database
+                } else {
+                 Write-Warning "Database Config missing for $($launchSiteOption.SiteName)"
+                } 
+                
+                sleep -Milliseconds 50
+            } 
          }  
         0{            
             Write-Host "`n"        
@@ -312,6 +325,12 @@ function Open-Folder([string] $folderPath){
     start 'C:\Windows\explorer.exe' -ArgumentList $($folderPath)
 }
 
+function Open-Database([string] $SiteName, [string] $DBServer, [string] $Database ){        
+    Write-Host "Opening SQL Management Studio for ..$($SiteName)"
+    $args = "-S $($DBServer) -d $($Database) -E -nosplash"
+    start 'Ssms' -ArgumentList $args
+}
+
 function Show-OptionList(){
     Write-Host "`n"    
     Write-Host "Options Available (*eg: 120 will Launch IISExpress and Open website, Open solution and exit)"   
@@ -322,6 +341,7 @@ function Show-OptionList(){
     Write-Host "5 -> Search Again"
     Write-Host "6 -> Open Remote Folder"
     Write-Host "7 -> Get Modified File List"
+    Write-Host "8 -> Connect To Database"
     Write-Host "Hit Enter or 0 to Exit"   
     Write-Host "`n"  
 }
