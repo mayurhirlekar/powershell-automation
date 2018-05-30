@@ -105,6 +105,54 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                 }
          }
      }
+
+    #Sitefinity Specific  
+    $ConfigFile= '\SitefinityWebApp\App_Data\Sitefinity\Configuration\DataConfig.config'
+    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.LocalPath
+     if( -not [bool]($siteObj.PSobject.Properties.name -match "Database") ){
+        
+        if(Test-path $webConfigPath){
+                [xml] $dbObj = Get-Content $webConfigPath 
+                $dbConnectionString = $dbObj.dataConfig.connectionStrings.add.connectionString
+            
+                if($dbConnectionString){
+                    foreach( $stuff in $dbConnectionString.split(';')) {
+                    if($stuff.ToLower()  -match 'source=' -or $stuff.ToLower() -match 'server=' ) {
+                     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name DBServer -Value $stuff.Split('=')[1]
+                    }
+                    if($stuff -match 'catalog=' -or $stuff.ToLower() -match 'database=') {
+                     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name Database -Value $stuff.Split('=')[1]
+                    }                
+
+                    }
+                }
+         }
+     }
+
+
+    #ROC Specific  
+    $ConfigFile= '\WebApi\Config\ConnectionStrings.config'
+    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.LocalPath
+     if( -not [bool]($siteObj.PSobject.Properties.name -match "Database") ){
+        
+        if(Test-path $webConfigPath){
+                [xml] $dbObj = Get-Content $webConfigPath 
+                $dbConnectionString = $dbObj.connectionStrings.add.connectionString
+            
+                if($dbConnectionString){
+                    foreach( $stuff in $dbConnectionString.split(';')) {
+                    if($stuff.ToLower()  -match 'source=' -or $stuff.ToLower() -match 'server=' ) {
+                     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name DBServer -Value $stuff.Split('=')[1]
+                    }
+                    if($stuff -match 'catalog=' -or $stuff.ToLower() -match 'database=') {
+                     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name Database -Value $stuff.Split('=')[1]
+                    }                
+
+                    }
+                }
+         }
+     }
+
           
     $updatePath = $_.application.VirtualDirectory | where { $_.path -match "assets" } | Select-Object physicalpath -First 1
     $updatePathWebIndex = if($updatePath) {$updatePath.physicalPath.LastIndexOf("\web") } else { 0 } 
