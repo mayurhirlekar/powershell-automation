@@ -169,7 +169,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
   If($counter -gt 1){
     $selectedSite | Format-List -Property Option,SiteName,LocalPath,UpdatePath,DBServer,Database   
            
-    $launchSite = Read-Host -Prompt "Enter Option (* Comma Seperated)"
+    $launchSite = Read-Host -Prompt "Enter Option Number"
 
     
     if([string]::IsNullOrEmpty($launchSite)){
