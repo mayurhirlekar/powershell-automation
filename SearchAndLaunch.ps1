@@ -82,7 +82,8 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
             }
      }
 
-
+         
+  
     #Kentico Specific
     $ConfigFile= '\CMS\web.config'
     $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.LocalPath
@@ -90,10 +91,10 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
         
         if(Test-path $webConfigPath){
                 [xml] $dbObj = Get-Content $webConfigPath 
-                $dbConnectionString = $dbObj.configuration.connectionStrings.add.connectionString
+                $dbConnectionString = $dbObj.configuration.connectionStrings.add | where {$_.name.ToLower() -eq 'cmsconnectionString'}
             
                 if($dbConnectionString){
-                    foreach( $stuff in $dbConnectionString.split(';')) {
+                    foreach( $stuff in $dbConnectionString.connectionString.split(';')) {
                     if($stuff.ToLower()  -match 'source=' -or $stuff.ToLower() -match 'server=' ) {
                      Add-Member -InputObject $siteObj -MemberType NoteProperty -Name DBServer -Value $stuff.Split('=')[1]
                     }
