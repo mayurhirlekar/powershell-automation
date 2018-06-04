@@ -51,9 +51,12 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
       Add-Member -InputObject $siteObj -MemberType NoteProperty -Name LocalPath -Value $localPath.physicalPath
       }
 
+    #Site's web folder
+    Add-Member -InputObject $siteObj -MemberType NoteProperty -Name WebFolder -Value $localPath.physicalPath
+
     #iDev Specific
-    $ConfigFile= '\web\web.config'
-    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.LocalPath
+    $ConfigFile= '\web.config'
+    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.WebFolder
     if(Test-path $webConfigPath){
             [xml] $dbObj = Get-Content $webConfigPath 
             $dbConnectionString = $dbObj.configuration.appSettings.add | where {$_.key -eq 'MasterConnectionString'} | Select value
@@ -71,6 +74,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
             }else {
             #old idev
             $dbConnectionString = $dbObj.configuration.appSettings.add | where {$_.key.ToLower() -eq 'connectionstring'} | Select value
+            if($dbConnectionString) {
             foreach( $stuff in $dbConnectionString.value.split(';')) {
                 if($stuff -match 'Source=' ) {
                  Add-Member -InputObject $siteObj -MemberType NoteProperty -Name DBServer -Value $stuff.Split('=')[1]
@@ -79,14 +83,15 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                  Add-Member -InputObject $siteObj -MemberType NoteProperty -Name Database -Value $stuff.Split('=')[1]
                 }    
                 }
+              }
             }
      }
 
          
   
     #Kentico Specific
-    $ConfigFile= '\CMS\web.config'
-    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.LocalPath
+    $ConfigFile= '\web.config'
+    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.WebFolder
      if( -not [bool]($siteObj.PSobject.Properties.name -match "Database") ){
         
         if(Test-path $webConfigPath){
@@ -108,8 +113,8 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
      }
 
     #Sitefinity Specific  
-    $ConfigFile= '\SitefinityWebApp\App_Data\Sitefinity\Configuration\DataConfig.config'
-    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.LocalPath
+    $ConfigFile= '\App_Data\Sitefinity\Configuration\DataConfig.config'
+    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.WebFolder
      if( -not [bool]($siteObj.PSobject.Properties.name -match "Database") ){
         
         if(Test-path $webConfigPath){
@@ -132,8 +137,8 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
 
 
     #ROC Specific  
-    $ConfigFile= '\WebApi\Config\ConnectionStrings.config'
-    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.LocalPath
+    $ConfigFile= '\Config\ConnectionStrings.config'
+    $webConfigPath = Join-Path -ChildPath $ConfigFile -Path $siteObj.WebFolder
      if( -not [bool]($siteObj.PSobject.Properties.name -match "Database") ){
         
         if(Test-path $webConfigPath){
@@ -167,9 +172,10 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
   } 
   
   If($counter -gt 1){
-    $selectedSite | Format-List -Property Option,SiteName,LocalPath,UpdatePath,DBServer,Database   
-           
-    $launchSite = Read-Host -Prompt "Enter Option Number"
+    $selectedSite | Format-List -Property Option,SiteName,LocalPath,UpdatePath,DBServer,Database | Format-Color @{'Option' = 'Green'} 
+        
+    Write-Host "Option Number: " -ForegroundColor Green -NoNewline    
+    $launchSite = Read-Host
 
     
     if([string]::IsNullOrEmpty($launchSite)){
@@ -178,20 +184,31 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
          Search-And-Launch
          return;
       }
-      
-    $notInOptions = $launchSite.Split(',') | Where-Object -FilterScript {[int32]$_ -ge $counter -or $_ -eq 0}
+    
 
-    if($notInOptions){
-         Write-Host "Invalid option number.. Exiting Shell"         
+    try
+    {  
+        $notInOptions = $launchSite.Split(',') | Where-Object -FilterScript {[int32]$_ -ge $counter -or $_ -eq 0}
+    }
+    catch
+    {
+         Write-Warning "Please provide valid option number"
+         Write-Host "`n"      
+         Search-And-Launch $SiteToSearch
          return;
-      }
+    }
       
 
     $optionSelected  = -1
     do {    
     Show-OptionList
-    $optionSelected = Read-Host -Prompt "What Now"
+    Write-Host "What Now: " -ForegroundColor Green -NoNewline
+    $optionSelected = Read-Host
      
+    if([string]::IsNullOrEmpty($optionsSelected) -or [string]::IsNullOrWhiteSpace($optionsSelected)){
+     $optionSelected = "0"
+    }
+
      switch ($optionSelected.ToCharArray())
      { 
         1{
@@ -277,7 +294,8 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
             Write-Host "2 -> Local"    
             Write-Host "3 -> Custom"
             Write-Host "`n" 
-            $fileListOption = Read-Host -Prompt "What Now"
+            Write-Host "What Now: " -ForegroundColor Green -NoNewline
+            $fileListOption = Read-Host
             Write-Host "`n" 
             Write-Warning "This might take couple of minutes"
             Write-Host "`n"
@@ -323,7 +341,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
          }  
         0{            
             Write-Host "`n"        
-            Write-Host "Good Bye...."
+            Write-Host "Good Bye...." -ForegroundColor Green
             $optionSelected = [Int32]::MinValue
          }        
      }
@@ -382,15 +400,39 @@ function Open-Database([string] $SiteName, [string] $DBServer, [string] $Databas
 
 function Show-OptionList(){
     Write-Host "`n"    
-    Write-Host "Options Available (*eg: 120 will Launch IISExpress and Open website, Open solution and exit)"   
-    Write-Host "1 -> Launch/Restart IISExpress"
-    Write-Host "2 -> Open solution"    
-    Write-Host "3 -> See List"
-    Write-Host "4 -> Open Local Folder"
-    Write-Host "5 -> Search Again"
-    Write-Host "6 -> Open Remote Folder"
-    Write-Host "7 -> Get Modified File List"
-    Write-Host "8 -> Connect To Database"
-    Write-Host "Hit Enter or 0 to Exit"   
+    Write-Host "Options Available (*eg: 120 will Launch IISExpress and Open website, Open solution and exit)" 
+    Write-Host "1 " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Launch/Restart IISExpress"
+    Write-Host "2 " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Open solution"  
+    Write-Host "3 " -ForegroundColor Green -NoNewline    
+    Write-Host "-> See List"
+    Write-Host "4 " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Open Local Folder"
+    Write-Host "5 " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Search Again"
+    Write-Host "6 " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Open Remote Folder"
+    Write-Host "7 " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Get Modified File List"
+    Write-Host "8 " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Connect To Database"    
+    Write-Host "Hit Enter or 0 to Exit" -ForegroundColor Yellow  
     Write-Host "`n"  
+}
+
+function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
+	$lines = ($input | Out-String) -replace "`r", "" -split "`n"
+	foreach($line in $lines) {
+		$color = ''
+		foreach($pattern in $Colors.Keys){
+			if(!$SimpleMatch -and $line -match $pattern) { $color = $Colors[$pattern] }
+			elseif ($SimpleMatch -and $line -like $pattern) { $color = $Colors[$pattern] }
+		}
+		if($color) {
+			Write-Host -ForegroundColor $color $line
+		} else {
+			Write-Host $line
+		}
+	}
 }
