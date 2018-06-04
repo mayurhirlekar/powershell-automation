@@ -96,7 +96,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
         
         if(Test-path $webConfigPath){
                 [xml] $dbObj = Get-Content $webConfigPath 
-                $dbConnectionString = $dbObj.configuration.connectionStrings.add | where {$_.name.ToLower() -eq 'cmsconnectionString'}
+                $dbConnectionString = $dbObj.configuration.connectionStrings.add | where { [bool]($siteObj.PSobject.Properties.name -match "name") -and  $_.name.ToLower() -eq 'cmsconnectionstring'}
             
                 if($dbConnectionString){
                     foreach( $stuff in $dbConnectionString.connectionString.split(';')) {
@@ -188,7 +188,14 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
 
     try
     {  
-        $notInOptions = $launchSite.Split(',') | Where-Object -FilterScript {[int32]$_ -ge $counter -or $_ -eq 0}
+        $notInOptions = $launchSite.Split(',') | Where-Object -FilterScript {[int32]$_ -ge ($counter - 1) -or [int32]$_ -eq 0 }
+
+        if(-not [string]::IsNullOrEmpty($notInOptions)){        
+            Write-Warning "Please provide valid option number"
+            Write-Host "`n"      
+            Search-And-Launch $SiteToSearch
+            return;
+        }
     }
     catch
     {
