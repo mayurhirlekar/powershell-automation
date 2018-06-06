@@ -96,7 +96,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
         
         if(Test-path $webConfigPath){
                 [xml] $dbObj = Get-Content $webConfigPath 
-                $dbConnectionString = $dbObj.configuration.connectionStrings.add | where { [bool]($siteObj.PSobject.Properties.name -match "name") -and  $_.name.ToLower() -eq 'cmsconnectionstring'}
+                $dbConnectionString = $dbObj.configuration.connectionStrings.add | Select -First 1
             
                 if($dbConnectionString){
                     foreach( $stuff in $dbConnectionString.connectionString.split(';')) {
@@ -172,7 +172,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
   } 
   
   If($counter -gt 1){
-    $selectedSite | Format-List -Property Option,SiteName,LocalPath,UpdatePath,DBServer,Database | Format-Color @{'Option' = 'Green'} 
+    $selectedSite| Format-List -Property Option,SiteName,LocalPath,UpdatePath,DBServer,Database | Format-Color @{'Option' = 'Green'} 
         
     Write-Host "Option Number: " -ForegroundColor Green -NoNewline    
     $launchSite = Read-Host
@@ -188,7 +188,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
 
     try
     {  
-        $notInOptions = $launchSite.Split(',') | Where-Object -FilterScript {[int32]$_ -ge ($counter - 1) -or [int32]$_ -eq 0 }
+        $notInOptions = $launchSite.Split(',') | Where-Object -FilterScript {[int32]$_ -ge $counter -or [int32]$_ -eq 0 }
 
         if(-not [string]::IsNullOrEmpty($notInOptions)){        
             Write-Warning "Please provide valid option number"
@@ -208,13 +208,10 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
 
     $optionSelected  = -1
     do {    
-    Show-OptionList
-    Write-Host "What Now: " -ForegroundColor Green -NoNewline
+    
+    Show-OptionList 
     $optionSelected = Read-Host
-     
-    if([string]::IsNullOrEmpty($optionsSelected) -or [string]::IsNullOrWhiteSpace($optionsSelected)){
-     $optionSelected = "0"
-    }
+        
 
      switch ($optionSelected.ToCharArray())
      { 
@@ -224,7 +221,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
          $isIISActive =  ps | where {$_.Name -eq "iisexpress"} | select -First 1
          if($isIISActive) {
              kill -name $isIISActive.ProcessName
-             Write-Host "Restarting IIS Express"
+             Write-Host "Restarting IIS Express" -ForegroundColor Yellow
          }         
                   
          foreach($site in $launchSite.Split(',')){
@@ -238,7 +235,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
 
                 if( $launchSiteOption.UpdatePath -is [String] -and !(Test-Path $launchSiteOption.UpdatePath)) {                              
                     Write-Warning "Invalid remote path $($launchSiteOption.UpdatePath)"
-                    Write-Warning "JavasScript and css file might not load properly"
+                    Write-Warning "JavasScript and css file might not load properly" 
                 }
                 
                 sleep -Milliseconds 50
@@ -251,7 +248,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
 
         2{
         Write-Host "`n" 
-        Write-Host "Visual Studio Solutions :"
+        Write-Host "Visual Studio Solutions :" -ForegroundColor Yellow
              foreach($site in $launchSite.Split(',')){
                 $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}                  
                 Open-Solution -path $launchSiteOption.LocalPath -message "Opening solution for....$($launchSiteOption.SiteName)"
@@ -262,7 +259,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                  
         3{         
         Write-Host "`n" 
-        Write-Host "Current List :"          
+        Write-Host "Current List :" -ForegroundColor Yellow          
             $selectedSite | Format-List -Property Option,SiteName,LocalPath,UpdatePath,DBServer,Database
          }
         4{
@@ -350,7 +347,11 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
             Write-Host "`n"        
             Write-Host "Good Bye...." -ForegroundColor Green
             $optionSelected = [Int32]::MinValue
-         }        
+         }
+        default{
+            Write-Host "`n"        
+            Write-Host "Please provide proper number...." -ForegroundColor Red
+        }        
      }
     } while($optionSelected -gt 0)      
    
@@ -360,7 +361,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
    }
 
   } else {
-    Write-host "No Site with " $SiteToSearch " name found"
+    Write-host "No Site with " $SiteToSearch " name found" -ForegroundColor Red
     Search-And-Launch
 }
 
@@ -390,17 +391,17 @@ function Open-Solution( [string]$path,[string] $message) {
 
 function Launch-IISExpress([string] $siteId,[string] $message){    
     $iisArgument = "/siteid:$($siteId) /systray:false /trace:n"
-    Write-Host $message 
+    Write-Host $message -ForegroundColor Yellow
     start 'C:\Program Files\IIS Express\iisexpress.exe' -ArgumentList $iisArgument    
 }
 
 function Open-Folder([string] $folderPath){        
-    Write-Host "Opening path ..$($folderPath)"
+    Write-Host "Opening path ..$($folderPath)" -ForegroundColor Yellow
     start 'C:\Windows\explorer.exe' -ArgumentList $($folderPath)
 }
 
 function Open-Database([string] $SiteName, [string] $DBServer, [string] $Database ){        
-    Write-Host "Opening SQL Management Studio for ..$($SiteName)"
+    Write-Host "Opening SQL Management Studio for ..$($SiteName)" -ForegroundColor Yellow
     $args = "-S $($DBServer) -d $($Database) -E -nosplash"
     start 'Ssms' -ArgumentList $args
 }
@@ -425,7 +426,8 @@ function Show-OptionList(){
     Write-Host "8 " -ForegroundColor Green -NoNewline  
     Write-Host "-> Connect To Database"    
     Write-Host "Hit Enter or 0 to Exit" -ForegroundColor Yellow  
-    Write-Host "`n"  
+    Write-Host "`n"
+    Write-Host "What Now: " -ForegroundColor Green -NoNewline  
 }
 
 function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
