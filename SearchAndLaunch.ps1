@@ -29,8 +29,9 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
     
     $bindingObject = $_.bindings.binding | Select-Object -First 1
     $bindingInformationArray = $bindingObject.bindingInformation.ToString().Split(':')
-    $urlBuild = [string]::Format("{0}://{1}:{2}",$bindingObject.protocol,$bindingInformationArray[$bindingInformationArray.Length-1],$bindingInformationArray[$bindingInformationArray.Length-2])      
-    
+    $urlBuild = [string]::Format("{0}://{1}:{2}",$bindingObject.protocol,$bindingInformationArray[$bindingInformationArray.Length-1],$bindingInformationArray[$bindingInformationArray.Length-2]) -replace ":80",""
+        
+
     Add-Member -InputObject $siteObj -MemberType NoteProperty -Name DefaultUrl -Value $urlBuild
     
     $localPath  = $_.application.VirtualDirectory | where { $_.physicalpath -match "C:"} | Select-Object physicalpath -First 1
@@ -238,10 +239,23 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                     Write-Warning "JavasScript and css file might not load properly" 
                 }
                 
-                sleep -Milliseconds 50
+                Start-Sleep -Seconds 2
 
-                if( $launchSiteOption.DefaultUrl -is [String]){                    
-                    Start $launchSiteOption.DefaultUrl
+                if( $launchSiteOption.DefaultUrl -is [String]){                     
+                    $defaultBrowser = (Get-ItemProperty HKCU:\Software\Microsoft\windows\Shell\Associations\UrlAssociations\http\UserChoice).Progid                   
+
+                    Write-Host "Opening in private window .. $($launchSiteOption.DefaultUrl) in $($defaultBrowser)"
+
+                    switch -Regex ($defaultBrowser){
+                     '^firefox'{
+                      Start-Process firefox "-private-window $($launchSiteOption.DefaultUrl)"
+                      }
+                     '^chrome'{ 
+                     Start-Process chrome "$($launchSiteOption.DefaultUrl) -incognito" 
+                     }
+                     default{ Start $launchSiteOption.DefaultUrl -ArgumentList }
+                    }
+                    
                 }
             }           
         }
@@ -252,15 +266,15 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
              foreach($site in $launchSite.Split(',')){
                 $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}                  
                 Open-Solution -path $launchSiteOption.LocalPath -message "Opening solution for....$($launchSiteOption.SiteName)"
-                sleep -Milliseconds 10
+                 Start-Sleep -Seconds 2
            }            
                       
          }
                  
         3{         
         Write-Host "`n" 
-        Write-Host "Current List :" -ForegroundColor Yellow          
-            $selectedSite | Format-List -Property Option,SiteName,LocalPath,UpdatePath,DBServer,Database
+        Write-Host "Selected site option :" -ForegroundColor Yellow          
+            $selectedSite | Where-Object { $_.Option -in $launchSite.Split(',') } | Format-List -Property Option,SiteName,LocalPath,UpdatePath,DBServer,Database
          }
         4{
             foreach($site in $launchSite.Split(',')){
@@ -414,7 +428,7 @@ function Show-OptionList(){
     Write-Host "2 " -ForegroundColor Green -NoNewline  
     Write-Host "-> Open solution"  
     Write-Host "3 " -ForegroundColor Green -NoNewline    
-    Write-Host "-> See List"
+    Write-Host "-> Selected option/s"
     Write-Host "4 " -ForegroundColor Green -NoNewline  
     Write-Host "-> Open Local Folder"
     Write-Host "5 " -ForegroundColor Green -NoNewline  
