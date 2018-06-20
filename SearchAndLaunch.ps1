@@ -356,6 +356,18 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                 
                 sleep -Milliseconds 50
             } 
+         }
+        9{           
+           foreach($site in $launchSite.Split(',')){
+                $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}                
+                if($launchSiteOption.UpdatePath -is [String] -and (Test-Path $launchSiteOption.UpdatePath)) {                                         
+                     Open-SynchronizationTool -LocalPath $launchSiteOption.LocalPath -RemotePath $launchSiteOption.UpdatePath 
+                }else{
+                       Write-Warning "Remote server path missing from config for $($launchSiteOption.SiteName)"                                    
+               }                  
+                               
+                sleep -Milliseconds 50
+            } 
          }  
         0{            
             Write-Host "`n"        
@@ -420,6 +432,46 @@ function Open-Database([string] $SiteName, [string] $DBServer, [string] $Databas
     start 'Ssms' -ArgumentList $args
 }
 
+
+function Open-SynchronizationTool([string] $LocalPath, [string] $RemotePath){
+  $ConfigFile= 'SearchAndLaunch.config'
+  [xml] $configObj = Get-Content $ConfigFile
+  $defaultSyncTool = $configObj.settings.synctools.add | where-object {$_.name -match 'primary'} | Select-Object -First 1
+  $toolName = $defaultSyncTool.value
+  $toolPath = $defaultSyncTool.path
+  switch ($toolName)
+     { 
+        "SynchronizeIt"{
+          Open-SynchronizeIt -folderPath1 $LocalPath -folderPath2 $RemotePath -path $toolPath
+        }
+        "Winmerge"{          
+          Open-Winmerge -folderPath1 $LocalPath -folderPath2 $RemotePath -path $toolPath
+        }
+   }
+
+}
+
+function Open-SynchronizeIt([string] $folderPath1, [string] $folderPath2 , [string] $path){ 
+    if([System.IO.File]::Exists($path)){ 
+      Write-Host "Opening path SynchronizeIt" -ForegroundColor Yellow
+      $args = [string]::concat($($folderPath1)," ",$($folderPath2))   
+      start $path -ArgumentList $args 
+    }else{
+      Write-Warning "Sorry .. tool was not able to find the file path for SynchronizeIt. Please update settings in config file"
+    }
+}
+
+function Open-Winmerge([string] $folderPath1, [string] $folderPath2,[string] $path){     
+    if([System.IO.File]::Exists($path)){ 
+      Write-Host "Opening path Winmerge" -ForegroundColor Yellow
+      $args = [string]::concat("-u -e ", $($folderPath1)," ",$($folderPath2))  
+      start winmerge -ArgumentList $args 
+    }else{
+      Write-Warning "Sorry .. tool was not able to find the file path for Winmerge. Please update settings in config file"
+    }
+}
+
+
 function Show-OptionList(){
     Write-Host "`n"    
     Write-Host "Options Available (*eg: 120 will Launch IISExpress and Open website, Open solution and exit)" 
@@ -438,7 +490,9 @@ function Show-OptionList(){
     Write-Host "7 " -ForegroundColor Green -NoNewline  
     Write-Host "-> Get Modified File List"
     Write-Host "8 " -ForegroundColor Green -NoNewline  
-    Write-Host "-> Connect To Database"    
+    Write-Host "-> Connect To Database" 
+    Write-Host "9 " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Open Synchronization Tool"       
     Write-Host "Hit Enter or 0 to Exit" -ForegroundColor Yellow  
     Write-Host "`n"
     Write-Host "What Now: " -ForegroundColor Green -NoNewline  
