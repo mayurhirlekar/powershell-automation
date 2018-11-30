@@ -220,9 +220,12 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
         Write-Host "`n" 
         Write-Host "IIS EXPRESS :"
          $isIISActive =  ps | where {$_.Name -eq "iisexpress"} | select -First 1
+         $launchBrowser = "n" 
+
          if($isIISActive) {
              kill -name $isIISActive.ProcessName
              Write-Host "Restarting IIS Express" -ForegroundColor Yellow
+           $launchBrowser =  Read-Host -Prompt "Launch Private Browser Window (y/n) "
          }         
                   
          foreach($site in $launchSite.Split(',')){
@@ -241,7 +244,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                 
                 Start-Sleep -Seconds 2
 
-                if( $launchSiteOption.DefaultUrl -is [String]){                     
+                if( $launchBrowser -eq "y" -and $launchSiteOption.DefaultUrl -is [String]){                     
                     $defaultBrowser = (Get-ItemProperty HKCU:\Software\Microsoft\windows\Shell\Associations\UrlAssociations\http\UserChoice).Progid                   
 
                     Write-Host "Opening in private window .. $($launchSiteOption.DefaultUrl) in $($defaultBrowser)"
