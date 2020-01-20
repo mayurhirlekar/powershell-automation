@@ -7,12 +7,12 @@ param(
 $appExeFolder = 'C:\Program Files\IIS Express\' 
 
 if([string]::IsNullOrEmpty($siteBasePath) -or -not (Test-Path $siteBasePath)){
-    Write-Warning 'local site path e.g: C:\inetpub\wwwroot\fullcirclepadding.com'  
+    Write-Host -ForegroundColor Green 'local site path e.g: C:\inetpub\wwwroot\fullcirclepadding.com'  
     $siteBasePath =  Read-Host -Prompt 'Local site path'
 }
 
 if([string]::IsNullOrEmpty($updateSitePath) -or -not (Test-Path $updateSitePath)){
-    Write-Warning 'Update site path e.g: C:\inetpub\wwwroot\fullcirclepadding.com'  
+    Write-Host -ForegroundColor Green 'Update site path e.g: \\CL-ECOM-4WB04\wwwroot\fullcirclepadding-updates.com'  
     $updateSitePath =  Read-Host -Prompt 'Update/design site path'
 }
 
@@ -51,10 +51,9 @@ try{
     }
     Start-Sleep -Seconds 1
 
-    Write-Host 'Copy Registry key file to your desktop and install the registry key'
+    Write-Host -ForegroundColor Red 'Important : Copy appropriate Registry key file to your desktop and install the registry key'
     $registryfolderPath = 'M:\_Programming\_registry keys'
-    start 'C:\Windows\explorer.exe' -ArgumentList $($registryfolderPath)
-        
+    start 'C:\Windows\explorer.exe' -ArgumentList $($registryfolderPath)        
 }
 catch {
  Write-Error 'Error occured :('  
