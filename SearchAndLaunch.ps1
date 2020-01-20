@@ -1,6 +1,8 @@
 ﻿Import-Module .\GetUpdatedFileList.ps1
-Function Search-And-Launch() {
+Import-Module .\Solution-SetUp.ps1
+Import-Module .\AddSiteToApplicationHostFile.ps1
 
+Function Search-And-Launch() {
 param(
  [Parameter(Mandatory=$false)][string]$SiteToSearch
 )
@@ -14,7 +16,7 @@ if($SiteToSearch.Length -eq 0){
    return
 }
 
-
+$SearchAndLaunchConfigFilePath = [string]::concat($PSScriptRoot,'\','SearchAndLaunch.config')
 $configPath = [Environment]::GetFolderPath("MyDocuments") + "\IISExpress\config\applicationhost.config"
 [xml] $con = Get-Content $configPath
 $selectedSite = @()
@@ -364,7 +366,7 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
            foreach($site in $launchSite.Split(',')){
                 $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}                
                 if($launchSiteOption.UpdatePath -is [String] -and (Test-Path $launchSiteOption.UpdatePath)) {                                         
-                     Open-SynchronizationTool -LocalPath $launchSiteOption.LocalPath -RemotePath $launchSiteOption.UpdatePath 
+                     Open-SynchronizationTool -ConfigFile $SearchAndLaunchConfigFilePath -LocalPath $launchSiteOption.LocalPath -RemotePath $launchSiteOption.UpdatePath 
                 }else{
                        Write-Warning "Remote server path missing from config for $($launchSiteOption.SiteName)"                                    
                }                  
@@ -377,6 +379,47 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
             Write-Host "Good Bye...." -ForegroundColor Green
             $optionSelected = [Int32]::MinValue
          }
+        b{
+            if (Get-Module -ListAvailable -Name Invoke-MsBuild) {
+                Write-Host "`n" 
+                Write-Host "Building Solution :" -ForegroundColor Yellow
+                foreach($site in $launchSite.Split(',')){
+                    $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}                  
+                    BuildSolution -solutionFolder $launchSiteOption.LocalPath -message "Building solution for....$($launchSiteOption.SiteName)"
+                    Start-Sleep -Seconds 2
+                } 
+            } 
+            else {
+                Write-Host "Module does not exist Please install Invoke-MsBuild module for powershell"
+                Write-Host "Command : Install-Module -Name Invoke-MsBuild "
+            }
+
+                   
+                      
+         }
+         r{
+                     
+                Write-Host "`n" 
+                Write-Host "Resetting readonly flag for solution :" -ForegroundColor Yellow
+                foreach($site in $launchSite.Split(',')){
+                    $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}                  
+                    ResetReadOnlyOnBinFolder -solutionFolder $launchSiteOption.LocalPath -message "Please try to build the solution now"
+                    Start-Sleep -Seconds 2            
+                 }   
+         }
+         c{
+                     
+                Write-Host "`n" 
+                Write-Host "Clone Solution :" -ForegroundColor Yellow
+                Clone-Git-Solution
+                Start-Sleep -Seconds 2
+         }
+         s{
+                Write-Host "`n" 
+                Write-Host "Adding site to IIS Express Config :" -ForegroundColor Yellow
+                Add-Site-to-IISExpress-Config
+                Start-Sleep -Seconds 2
+          }
         default{
             Write-Host "`n"        
             Write-Host "Please provide proper number...." -ForegroundColor Red
@@ -435,9 +478,7 @@ function Open-Database([string] $SiteName, [string] $DBServer, [string] $Databas
     start 'Ssms' -ArgumentList $args
 }
 
-
-function Open-SynchronizationTool([string] $LocalPath, [string] $RemotePath){
-  $ConfigFile= 'SearchAndLaunch.config'
+function Open-SynchronizationTool($ConfigFile, [string] $LocalPath, [string] $RemotePath){  
   [xml] $configObj = Get-Content $ConfigFile
   $defaultSyncTool = $configObj.settings.synctools.add | where-object {$_.name -match 'primary'} | Select-Object -First 1
   $toolName = $defaultSyncTool.value
@@ -449,6 +490,9 @@ function Open-SynchronizationTool([string] $LocalPath, [string] $RemotePath){
         }
         "Winmerge"{          
           Open-Winmerge -folderPath1 $LocalPath -folderPath2 $RemotePath -path $toolPath
+        }        
+        "BeyondCompare4"{
+          Open-BeyondCompare -folderPath1 $LocalPath -folderPath2 $RemotePath -path $toolPath
         }
    }
 
@@ -460,7 +504,7 @@ function Open-SynchronizeIt([string] $folderPath1, [string] $folderPath2 , [stri
       $args = [string]::concat($($folderPath1)," ",$($folderPath2))   
       start $path -ArgumentList $args 
     }else{
-      Write-Warning "Sorry .. tool was not able to find the file path for SynchronizeIt. Please update settings in config file"
+      Write-Warning "Sorry .. tool was not able to find the file path for SynchronizeIt. Please update settings in config file"      
     }
 }
 
@@ -468,12 +512,21 @@ function Open-Winmerge([string] $folderPath1, [string] $folderPath2,[string] $pa
     if([System.IO.File]::Exists($path)){ 
       Write-Host "Opening path Winmerge" -ForegroundColor Yellow
       $args = [string]::concat("-u -e ", $($folderPath1)," ",$($folderPath2))  
-      start winmerge -ArgumentList $args 
+      start $path -ArgumentList $args 
     }else{
-      Write-Warning "Sorry .. tool was not able to find the file path for Winmerge. Please update settings in config file"
+      Write-Warning "Sorry .. tool was not able to find the file path for Winmerge. Please update settings in config file"      
     }
 }
 
+function Open-BeyondCompare([string] $folderPath1, [string] $folderPath2,[string] $path){     
+    if([System.IO.File]::Exists($path)){ 
+      Write-Host "Opening path Beyond Compare 4" -ForegroundColor Yellow
+      $args = [string]::concat("/nobackups /ro " ,$($folderPath1)," ",$($folderPath2))  
+      start $path -ArgumentList $args 
+    }else{
+      Write-Warning "Sorry .. tool was not able to find the file path for Beyond Compare 4. Please update settings in config file"
+  }
+}
 
 function Show-OptionList(){
     Write-Host "`n"    
@@ -495,7 +548,15 @@ function Show-OptionList(){
     Write-Host "8 " -ForegroundColor Green -NoNewline  
     Write-Host "-> Connect To Database" 
     Write-Host "9 " -ForegroundColor Green -NoNewline  
-    Write-Host "-> Open Synchronization Tool"       
+    Write-Host "-> Open Synchronization Tool"     
+    Write-Host "b " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Build the solution"
+    Write-Host "r " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Reset read only flag for all bin folders"
+    Write-Host "c " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Clone a git repo" 
+    Write-Host "s " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Add new site to IIS Configuration"         
     Write-Host "Hit Enter or 0 to Exit" -ForegroundColor Yellow  
     Write-Host "`n"
     Write-Host "What Now: " -ForegroundColor Green -NoNewline  
@@ -515,4 +576,40 @@ function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
 			Write-Host $line
 		}
 	}
+}
+
+
+function BuildSolution($solutionFolder, $message) {
+
+$solutionFile = (Get-ChildItem -Path $solutionFolder -Filter *.sln | Select-Object -First 1).FullName
+
+$buildLogFolder = [string]::concat($($solutionFolder),'\BuildLogs')
+
+ if(!(Test-path $buildLogFolder)){
+    New-Item -ItemType Directory -Force -Path $buildLogFolder
+      Write-Output ("Creating build log folder")
+ }
+ 
+Write-Host $message 
+
+$buildResult = Invoke-MsBuild -Path $solutionFile -MsBuildParameters "/target:Clean;Build /p:Configuration=Debug /m /v:m /preprocess:importedFiles.txt;" -ShowBuildOutputInNewWindow -BuildLogDirectoryPath $buildLogFolder -KeepBuildLogOnSuccessfulBuilds -AutoLaunchBuildErrorsLogOnFailure
+
+        if ($buildResult.BuildSucceeded -eq $true)
+        {
+	        Write-Output ("Build completed successfully in {0:N1} seconds." -f $buildResult.BuildDuration.TotalSeconds)
+        }
+        elseif ($buildResult.BuildSucceeded -eq $false)
+        {
+	        Write-Output ("Build failed after {0:N1} seconds. Check the build log file '$($buildResult.BuildLogFilePath)' for errors." -f $buildResult.BuildDuration.TotalSeconds)
+        }
+        elseif ($null -eq $buildResult.BuildSucceeded)
+        {
+	        Write-Output "Unsure if build passed or failed: $($buildResult.Message)"
+        }
+
+}
+
+function ResetReadOnlyOnBinFolder($solutionFolder,$message){
+    Get-ChildItem -Path $solutionFolder -Directory -Recurse -Filter "*bin*" | %{ Get-ChildItem -Path $_.FullName -Recurse -File | %{ $_.IsReadOnly = $False }}
+    Write-Host $message 
 }
