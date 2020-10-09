@@ -1,6 +1,8 @@
 ﻿Import-Module .\GetUpdatedFileList.ps1
 Import-Module .\Solution-SetUp.ps1
 Import-Module .\AddSiteToApplicationHostFile.ps1
+Import-Module .\Get-GitCommit-FileList.ps1
+Import-Module posh-git
 
 Function Search-And-Launch() {
 param(
@@ -270,8 +272,9 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
         Write-Host "Visual Studio Solutions :" -ForegroundColor Yellow
              foreach($site in $launchSite.Split(',')){
                 $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()}                  
-                Open-Solution -path $launchSiteOption.LocalPath -message "Opening solution for....$($launchSiteOption.SiteName)"
-                 Start-Sleep -Seconds 2
+                Open-Solution -path $launchSiteOption.LocalPath -message "Opening solution for....$($launchSiteOption.SiteName)";
+                Start-Sleep -Seconds 2;
+                cd $launchSiteOption.LocalPath;
            }            
                       
          }
@@ -420,9 +423,53 @@ $con.configuration.'system.applicationHost'.sites.site | where {$_.name -match $
                 Add-Site-to-IISExpress-Config
                 Start-Sleep -Seconds 2
           }
+         l{            
+            Write-Host "`n"    
+            Write-Host "Options Available"   
+            Write-Host "1 -> TFS"
+            Write-Host "2 -> GIT"    
+            Write-Host "0 -> Exit"
+            Write-Host "`n" 
+            Write-Host "What Now: " -ForegroundColor Green -NoNewline
+            $commitOption = Read-Host
+            Write-Host "`n" 
+             foreach($site in $launchSite.Split(',')){
+                    $launchSiteOption = $selectedSite | where {$_.Option -eq $site.Trim()} 
+                     cd $launchSiteOption.LocalPath
+                         switch ($commitOption.ToCharArray())
+                            {
+                                1{      
+                                   $tfsResult = & tf stat . /recursive
+                                   $results =  $tfsResult | Select-String '.[:].*[\n\r]?' -AllMatches 
+                                   $TEMP_TFS_FILE_PATH =  ($env:TEMP + '\CheckedOutTfsfile.txt')                                   
+                                   $results.Matches.Value | Out-File $TEMP_TFS_FILE_PATH
+                                   NotePad $TEMP_TFS_FILE_PATH                                                                                    
+                                 }
+                                2{
+                                    Write-Host "You can provide commit range as well e.g.: 81b541cb..bdcf4c2c OR HEAD~0..HEAD~7 OR HEAD~0"
+                                    Write-Host "Commit: " -ForegroundColor Green -NoNewline
+                                    $commitOption = Read-Host     
+                                    
+                                    if($commitOption -match ".") 
+                                    {
+                                        Get-GitCommit-FileList -commitRange $commitOption
+                                    }
+                                    else 
+                                    {
+                                        Get-GitCommit-FileList -fromCommit $commitOption
+                                    }                                                                   
+                                    
+                                 }
+                                0{                                       
+                                    $optionSelected = 3;
+                                 }
+                            }
+             }
+
+         }
         default{
             Write-Host "`n"        
-            Write-Host "Please provide proper number...." -ForegroundColor Red
+            Write-Host "Please provide proper option...." -ForegroundColor Red
         }        
      }
     } while($optionSelected -gt 0)      
@@ -556,7 +603,9 @@ function Show-OptionList(){
     Write-Host "c " -ForegroundColor Green -NoNewline  
     Write-Host "-> Clone a git repo" 
     Write-Host "s " -ForegroundColor Green -NoNewline  
-    Write-Host "-> Add new site to IIS Configuration"         
+    Write-Host "-> Add new site to IIS Configuration"  
+    Write-Host "l " -ForegroundColor Green -NoNewline  
+    Write-Host "-> Get Checked out/committed file list"         
     Write-Host "Hit Enter or 0 to Exit" -ForegroundColor Yellow  
     Write-Host "`n"
     Write-Host "What Now: " -ForegroundColor Green -NoNewline  
